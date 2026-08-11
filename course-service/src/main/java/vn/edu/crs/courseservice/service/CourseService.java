@@ -3,7 +3,9 @@ package vn.edu.crs.courseservice.service;
 import vn.edu.crs.courseservice.dto.CourseDTO;
 import vn.edu.crs.courseservice.entity.Course;
 import vn.edu.crs.courseservice.repository.CourseRepository;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
@@ -102,5 +104,57 @@ public class CourseService {
                 course.getSoChoToiDa(),
                 course.getSoChoConLai()
         );
+    }
+    public Page<CourseDTO> search(String keyword, Pageable pageable) {
+        Page<Course> page = (keyword == null || keyword.isBlank())
+                ? courseRepository.findAll(pageable)
+                : courseRepository.findByTenMonHocContainingIgnoreCase(keyword, pageable);
+
+        return page.map(this::toDTO);
+    }
+    // RESERVE SEAT
+    // RELEASE SEAT
+    // RESERVE SEAT
+    @Transactional
+    public CourseDTO reserveSeat(Long courseId) {
+
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() ->
+                        new NoSuchElementException(
+                                "Khong tim thay mon hoc id = " + courseId
+                        )
+                );
+
+        if (course.getSoChoConLai() <= 0) {
+            throw new IllegalStateException(
+                    "Mon hoc da het cho, khong the dang ky"
+            );
+        }
+
+        course.setSoChoConLai(course.getSoChoConLai() - 1);
+
+        return toDTO(courseRepository.save(course));
+    }
+
+    // RELEASE SEAT
+    @Transactional
+    public CourseDTO releaseSeat(Long courseId) {
+
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() ->
+                        new NoSuchElementException(
+                                "Khong tim thay mon hoc id = " + courseId
+                        )
+                );
+
+        if (course.getSoChoConLai() >= course.getSoChoToiDa()) {
+            throw new IllegalStateException(
+                    "So cho con lai da toi da, khong the release"
+            );
+        }
+
+        course.setSoChoConLai(course.getSoChoConLai() + 1);
+
+        return toDTO(courseRepository.save(course));
     }
 }
